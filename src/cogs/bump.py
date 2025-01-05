@@ -1,10 +1,8 @@
 import discord
 from discord.ext import commands, tasks
 from datetime import datetime
+from src.utils.files_loader import file_loader
 import json
-import asyncio
-import yaml
-
 
 class BumpCog(commands.Cog):
     def __init__(self, bot):
@@ -12,8 +10,7 @@ class BumpCog(commands.Cog):
         self.bump_check.start()  # Start the background task after initialization
     
     # Load config.yml
-    with open('config.yml', 'r') as f:
-        config = yaml.safe_load(f)
+    config = file_loader('config.yml')
     
     CHANNELID = 1324979225098453032
     SERVERID = 1324888658016211005
@@ -23,8 +20,7 @@ class BumpCog(commands.Cog):
         if message.author.id == 302050872383242240:  # Bump bot ID
             if message.embeds and 'Bump done! :thumbsup:' in message.embeds[0].description:
                 try:
-                    with open(r'src/data/bumptime.json', 'r') as file:
-                        timedata = json.load(file)
+                    timedata = file_loader('src/data/bumptime.json')
                     timedata["lastbump"] = str(datetime.utcnow())
                     with open(r'src/data/bumptime.json', 'w') as file:
                         json.dump(timedata, file, indent=4)
@@ -35,8 +31,7 @@ class BumpCog(commands.Cog):
     async def bump_check(self):
         await self.bot.wait_until_ready()
         try:
-            with open(r'src/data/bumptime.json', 'r') as f:
-                cache = json.load(f)
+            cache = file_loader('src/data/bumptime.json')
             data = cache.get("lastbump", str(0))
             if data != str(0):
                 last_bumped = datetime.strptime(data, '%Y-%m-%d %H:%M:%S.%f')
