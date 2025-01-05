@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 import yaml
-import os
+from src.modules.loader import load_cogs
 
 # Load config
 with open('config.yml', 'r') as f:
@@ -17,18 +17,6 @@ intents.messages = True
 bot = commands.Bot(command_prefix=config['prefix'], intents=intents)
 bot.remove_command('help')
 
-
-# Load Cogs
-async def load_cogs():
-    for filename in os.listdir('./src/cogs'):
-        if filename.endswith('.py'):
-            try:
-                await bot.load_extension(f'cogs.{filename[:-3]}')
-                print(f'Loaded cog: {filename}')
-            except Exception as e:
-                print(f'❌ Failed to load cog {filename}: {e}')
-
-
 # On ready
 @bot.event
 async def on_ready():
@@ -39,7 +27,7 @@ async def on_ready():
 # Run bot
 async def main():
     async with bot:
-        await load_cogs()
+        await load_cogs(bot)
         await bot.start(config['token'])
 
 
