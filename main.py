@@ -1,12 +1,11 @@
 import discord
 from discord.ext import commands
-import yaml
+from src.utils.files_loader import file_loader
 from src.modules.loader import load_cogs
 from src.modules.launcher import setup_events, start
 
 # Load config
-with open('config.yml', 'r') as f:
-    config = yaml.safe_load(f)
+config = file_loader('config.yml')
 
 # Intents (required for newer versions of discord.py)
 intents = discord.Intents.default()
