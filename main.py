@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import yaml
 from src.modules.loader import load_cogs
+from src.modules.launcher import Launch
 
 # Load config
 with open('config.yml', 'r') as f:
@@ -28,8 +29,10 @@ async def on_ready():
 async def main():
     async with bot:
         await load_cogs(bot)
-        await bot.start(config['token'])
+        await Launch(bot, config['token'])
 
 
 import asyncio
-asyncio.run(main())
+
+main_task = asyncio.create_task(main())
+asyncio.run(main_task)
