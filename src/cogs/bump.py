@@ -49,7 +49,7 @@ class BumpCog(commands.Cog):
                             description=f"Type `/bump` to bump at https://disboard.org/server/{self.SERVERID}",
                             color=discord.Color.blurple()
                         )
-                        await channel.send(content="<@&1925225>", embed=embed)
+                        await channel.send(content="<@&1324991833012568094>", embed=embed)
                     else:
                         print("Bump channel not found. Check CHANNELID.")
         except Exception as e:
