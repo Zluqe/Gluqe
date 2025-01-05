@@ -4,7 +4,7 @@ class Launch():
     def __init__(self, bot, token):
         self.bot = bot
         self.setup_events()
-        self.bot.loop.create_task(self.start(token))
+        self.start(token)
 
     def setup_events(self):
         @self.bot.event
@@ -16,7 +16,7 @@ class Launch():
 
     async def start(self, token):
         try:
-            self.bot.run(token)
+            self.bot.start(token)
         except Exception as e:
             print("Failed to start bot")
             print(e)

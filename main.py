@@ -18,6 +18,7 @@ intents.messages = True
 bot = commands.Bot(command_prefix=config['prefix'], intents=intents)
 bot.remove_command('help')
 
+
 # On ready
 @bot.event
 async def on_ready():
@@ -29,10 +30,8 @@ async def on_ready():
 async def main():
     async with bot:
         await load_cogs(bot)
-        await Launch(bot, config['token'])
+        Launch(bot, config['token'])
 
 
 import asyncio
-
-main_task = asyncio.create_task(main())
-asyncio.run(main_task)
+asyncio.run(main())
