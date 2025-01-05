@@ -23,10 +23,10 @@ class BumpCog(commands.Cog):
         if message.author.id == 302050872383242240:  # Bump bot ID
             if message.embeds and 'Bump done! :thumbsup:' in message.embeds[0].description:
                 try:
-                    with open(r'data/bumptime.json', 'r') as file:
+                    with open(r'src/data/bumptime.json', 'r') as file:
                         timedata = json.load(file)
                     timedata["lastbump"] = str(datetime.utcnow())
-                    with open(r'data/bumptime.json', 'w') as file:
+                    with open(r'src/data/bumptime.json', 'w') as file:
                         json.dump(timedata, file, indent=4)
                 except Exception as e:
                     print(f"Failed to update bump time: {e}")
@@ -35,7 +35,7 @@ class BumpCog(commands.Cog):
     async def bump_check(self):
         await self.bot.wait_until_ready()
         try:
-            with open(r'data/bumptime.json', 'r') as f:
+            with open(r'src/data/bumptime.json', 'r') as f:
                 cache = json.load(f)
             data = cache.get("lastbump", str(0))
             if data != str(0):
@@ -45,7 +45,7 @@ class BumpCog(commands.Cog):
                 time_data = int(diff.total_seconds())
                 if time_data > 7200:
                     cache["lastbump"] = str(0)
-                    with open(r'data/bumptime.json', 'w') as f:
+                    with open(r'src/data/bumptime.json', 'w') as f:
                         json.dump(cache, f, indent=4)
                     channel = self.bot.get_channel(self.CHANNELID)
                     if channel:

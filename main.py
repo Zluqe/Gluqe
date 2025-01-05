@@ -20,7 +20,7 @@ bot.remove_command('help')
 
 # Load Cogs
 async def load_cogs():
-    for filename in os.listdir('./cogs'):
+    for filename in os.listdir('./src/cogs'):
         if filename.endswith('.py'):
             try:
                 await bot.load_extension(f'cogs.{filename[:-3]}')
