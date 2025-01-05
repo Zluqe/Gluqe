@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import yaml
 from src.modules.loader import load_cogs
-from src.modules.launcher import Launch
+from src.modules.launcher import setup_events, start
 
 # Load config
 with open('config.yml', 'r') as f:
@@ -19,18 +19,12 @@ bot = commands.Bot(command_prefix=config['prefix'], intents=intents)
 bot.remove_command('help')
 
 
-# On ready
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user.name} - {bot.user.id}')
-    print('------')
-
-
 # Run bot
 async def main():
     async with bot:
         await load_cogs(bot)
-        Launch(bot, config['token'])
+        await setup_events(bot)
+        await start(bot, config['token'])
 
 
 import asyncio
