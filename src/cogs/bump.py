@@ -10,7 +10,7 @@ class BumpCog(commands.Cog):
         self.bump_check.start()  # Start the background task after initialization
     
     # Load config.yml
-    config = file_loader('config.yml')
+    config = file_loader('./config.yml')
     
     CHANNELID = 1324979225098453032
     SERVERID = 1324888658016211005
@@ -20,9 +20,9 @@ class BumpCog(commands.Cog):
         if message.author.id == 302050872383242240:  # Bump bot ID
             if message.embeds and 'Bump done! :thumbsup:' in message.embeds[0].description:
                 try:
-                    timedata = file_loader('src/data/bumptime.json')
+                    timedata = file_loader('./src/data/bumptime.json')
                     timedata["lastbump"] = str(datetime.utcnow())
-                    with open(r'src/data/bumptime.json', 'w') as file:
+                    with open(r'./src/data/bumptime.json', 'w') as file:
                         json.dump(timedata, file, indent=4)
                 except Exception as e:
                     print(f"Failed to update bump time: {e}")
@@ -31,7 +31,7 @@ class BumpCog(commands.Cog):
     async def bump_check(self):
         await self.bot.wait_until_ready()
         try:
-            cache = file_loader('src/data/bumptime.json')
+            cache = file_loader('./src/data/bumptime.json')
             data = cache.get("lastbump", str(0))
             if data != str(0):
                 last_bumped = datetime.strptime(data, '%Y-%m-%d %H:%M:%S.%f')
@@ -40,7 +40,7 @@ class BumpCog(commands.Cog):
                 time_data = int(diff.total_seconds())
                 if time_data > 7200:
                     cache["lastbump"] = str(0)
-                    with open(r'src/data/bumptime.json', 'w') as f:
+                    with open(r'./src/data/bumptime.json', 'w') as f:
                         json.dump(cache, f, indent=4)
                     channel = self.bot.get_channel(self.CHANNELID)
                     if channel:
