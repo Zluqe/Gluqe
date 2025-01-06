@@ -5,7 +5,7 @@ from src.modules.loader import load_cogs
 from src.modules.launcher import setup_events, start
 
 # Load config
-config = file_loader('config.yml')
+config = file_loader('./config.yml')
 
 # Intents (required for newer versions of discord.py)
 intents = discord.Intents.default()
