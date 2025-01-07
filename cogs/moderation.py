@@ -27,7 +27,7 @@ class Moderation(commands.Cog):
         if any(attachment.filename.lower().endswith(tuple(prohibited_extensions)) for attachment in message.attachments):
             warning_msg = f"{message.author.mention}, your message was deleted due to an attachment with a prohibited file extension."
             await message.delete()
-            await message.channel.send(warning_msg, delete_after=15)
+            await message.channel.send(warning_msg, ephemeral=True)
             return
 
         # Check for people pinging others
@@ -51,7 +51,7 @@ class Moderation(commands.Cog):
         if re.search(ip_pattern, message.content):
             warning_msg = f"{message.author.mention}, Your message was deleted due to the reason of containing an IP address."
             await message.delete()
-            await message.channel.send(warning_msg, delete_after=15)
+            await message.channel.send(warning_msg, ephemeral=True)
             return
 
 async def setup(bot):
