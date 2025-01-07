@@ -33,7 +33,7 @@ class Welcome(commands.Cog):
                 embed = discord.Embed(
                     title=f"Welcome to {member.guild.name}!",
                     description=f"Welcome {member.mention} to Zluqe, we hope you enjoy your stay here!",
-                    color=0x6495ED
+                    color=config['colors']['welcome']
                 )
                 embed.set_thumbnail(url=member.avatar.url)
                 embed.set_footer(text="The first host to put the community first.")
