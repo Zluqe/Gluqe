@@ -27,31 +27,15 @@ class Moderation(commands.Cog):
         if any(attachment.filename.lower().endswith(tuple(prohibited_extensions)) for attachment in message.attachments):
             warning_msg = f"{message.author.mention}, your message was deleted due to an attachment with a prohibited file extension."
             await message.delete()
-            await message.channel.send(warning_msg, ephemeral=True)
+            await message.channel.send(warning_msg, delete_after=15)
             return
-
-        # Check for people pinging others
-        if message.mentions:
-            if len(message.mentions) == 1 and message.mentions[0] == message.author:
-                pass
-            # this role id is allowed to ping others
-            elif 1324991942576177307 in [role.id for role in message.author.roles]:
-                pass
-            # if people ping the bot itself
-            elif self.bot.user in message.mentions:
-                pass
-            # if someone with role id 1231231 is pinged, send a message
-            elif any(role.id == 1324991942576177307 for role in message.mentions[0].roles):
-                await asyncio.sleep(1)
-                warning_msg = "Please be patient and **avoid pinging staff unnecessarily**. Staff will respond when they have time and see the message."
-                await message.reply(warning_msg, ephemeral=True)
 
         # Check for IP addresses (IPv4 format)
         ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
         if re.search(ip_pattern, message.content):
             warning_msg = f"{message.author.mention}, Your message was deleted due to the reason of containing an IP address."
             await message.delete()
-            await message.channel.send(warning_msg, ephemeral=True)
+            await message.channel.send(warning_msg, delete_after=15)
             return
 
 async def setup(bot):
