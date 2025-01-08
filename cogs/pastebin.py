@@ -1,5 +1,6 @@
 import discord, aiohttp, mimetypes, json, logging
 from discord.ext import commands
+from discord import app_commands
 
 class Pastebin(commands.Cog):
     def __init__(self, bot):
@@ -73,14 +74,14 @@ class Pastebin(commands.Cog):
                     truncated = True
                 
                 async with aiohttp.ClientSession() as session:
-                    post_url = "https://bin.birdflop.com/documents"
+                    post_url = "https://paste.zluqe.org/documents"
                     async with session.post(post_url, data=text_content) as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             key = data.get("key")
                             
                             if key:
-                                link = f"https://bin.birdflop.com/{key}"
+                                link = f"https://paste.zluqe.org/{key}"
                                 embed_desc = f"{link}\nRequested by {message.author.mention}"
                                 if truncated:
                                     embed_desc += "\n*(File was truncated because it was too long.)*"
@@ -131,14 +132,14 @@ class Pastebin(commands.Cog):
                     truncated = True
                 
                 async with aiohttp.ClientSession() as session:
-                    post_url = "https://bin.birdflop.com/documents"
+                    post_url = "https://paste.zluqe.org/documents"
                     async with session.post(post_url, data=text_content) as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             key = data.get("key")
                             
                             if key:
-                                link = f"https://bin.birdflop.com/{key}"
+                                link = f"https://paste.zluqe.org/{key}"
                                 embed_desc = f"{link}\nRequested by {ctx.author.mention}"
                                 if truncated:
                                     embed_desc += "\n*(File was truncated because it was too long.)*"
