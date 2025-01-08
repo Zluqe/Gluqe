@@ -1,5 +1,6 @@
 import discord, random, os, yaml, asyncio
 from discord.ext import commands
+from discord import app_commands
 
 # Load config
 with open('config.yml', 'r') as f:
@@ -27,6 +28,11 @@ async def rotate_activity():
 async def on_ready():
     print(f'Logged in as {bot.user.name} - {bot.user.id}')
     print(f'Version: {discord.__version__}')
+    try:
+        synced = await bot.tree.sync()
+        print(f'Synced {len(synced)} commands')
+    except Exception as e:
+        print(f'Failed to sync commands: {e}')
     print('------')
     bot.loop.create_task(rotate_activity())
     
