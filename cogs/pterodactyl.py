@@ -1,7 +1,7 @@
-import discord
+import discord, yaml
 from discord.ext import commands
 from pydactyl import PterodactylClient
-import yaml
+from helpers.checks import is_blacklisted, is_owner, load_blacklist
 
 # Load configuration data from a YAML file
 def load_config():
@@ -23,44 +23,41 @@ class NodeStats(commands.Cog):
         self.api = PterodactylClient(config['panel']['url'], config['panel']['api'])
 
     @commands.hybrid_command(name='nodestats')
+    @is_blacklisted()
     async def roles_command(self, ctx: commands.Context) -> None:
         """
         Displays stats for all nodes.
         """
-        try:
-            # Fetch node stats
-            nodes = self.api.nodes.list_nodes()
-            nodes_data = nodes.collect() if hasattr(nodes, 'collect') else list(nodes)
+        # Fetch node stats
+        nodes = self.api.nodes.list_nodes()
+        nodes_data = nodes.collect() if hasattr(nodes, 'collect') else list(nodes)
 
-            embed = discord.Embed(
-                title="Node Stats",
-                description="Here are the stats for all nodes:",
-                color=discord.Color.blue()
+        embed = discord.Embed(
+            title="Node Stats",
+            description="Here are the stats for all nodes:",
+            color=discord.Color.blue()
+        )
+
+        for node in nodes_data:
+            attributes = node['attributes']
+            name = attributes['name']
+            total_memory = attributes['memory']
+            used_memory = attributes['allocated_resources'].get('memory', 0)
+            total_disk = attributes['disk']
+            used_disk = attributes['allocated_resources'].get('disk', 0)
+            fdqn = attributes['fqdn']
+
+            embed.add_field(
+                name=f"**{name}** - {fdqn}",
+                value=(
+                    f"- **Memory Allocated:** ``{used_memory}`` MB / ``{total_memory}`` MB\n"
+                    f"- **Storage Allocated:** ``{used_disk}`` MB / ``{total_disk}`` MB"
+                ),
+                inline=False
             )
+            embed.set_footer(text="Total Users: " + str(get_total_users()) + " • Powered by Zluqe")
 
-            for node in nodes_data:
-                attributes = node['attributes']
-                name = attributes['name']
-                total_memory = attributes['memory']
-                used_memory = attributes['allocated_resources'].get('memory', 0)
-                total_disk = attributes['disk']
-                used_disk = attributes['allocated_resources'].get('disk', 0)
-                fdqn = attributes['fqdn']
-
-                embed.add_field(
-                    name=f"**{name}** - {fdqn}",
-                    value=(
-                        f"- **Memory Allocated:** ``{used_memory}`` MB / ``{total_memory}`` MB\n"
-                        f"- **Storage Allocated:** ``{used_disk}`` MB / ``{total_disk}`` MB"
-                    ),
-                    inline=False
-                )
-                embed.set_footer(text="Total Users: " + str(get_total_users()) + " • Powered by Zluqe")
-
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-            await ctx.send(f"Error fetching node stats: {e}")
+        await ctx.send(embed=embed)
 
 
 async def setup(bot):

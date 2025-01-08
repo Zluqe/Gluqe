@@ -6,7 +6,7 @@ from helpers.checks import is_blacklisted, is_owner, load_blacklist
 
 # Load configuration data from a YAML file
 def load_config():
-    with open('config.yaml', 'r') as f:
+    with open('config.yml', 'r') as f:
         return yaml.safe_load(f)
 
 class Moderation(commands.Cog):
@@ -33,6 +33,36 @@ class Moderation(commands.Cog):
             await message.delete()
             await message.channel.send(warning_msg, delete_after=15)
             return
+
+    def save_blacklist(self, blacklist):
+        with open('data/blacklist.json', 'w') as f:
+            json.dump(blacklist, f)
+
+    @commands.hybrid_command(name="blacklist")
+    @is_owner()
+    async def blacklist(self, ctx, user: discord.User):
+        """
+        Blacklist a user from using the bot.
+        """
+        try:
+            blacklist = load_blacklist()
+            if user.id not in blacklist:
+                blacklist.append(user.id)
+                self.save_blacklist(blacklist)
+                await ctx.reply(f"{user.name} has been blacklisted.")
+            else:
+                try:
+                    blacklist = load_blacklist()
+                    if user.id in blacklist:
+                        blacklist.remove(user.id)
+                        self.save_blacklist(blacklist)
+                        await ctx.reply(f"{user.name} has been removed from the blacklist.")
+                    else:
+                        await ctx.reply(f"Legacy Code, If i remove everything will break.")
+                except Exception as e:
+                    print(e)                
+        except Exception as e:
+            print(e)
 
 async def setup(bot):
     await bot.add_cog(Moderation(bot))

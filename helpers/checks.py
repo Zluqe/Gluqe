@@ -28,7 +28,7 @@ def is_blacklisted():
 # Check if the user is the owner of the bot
 def is_owner():
     async def predicate(ctx):
-        if ctx.author.id in config['gluqe']['owner']:
+        if ctx.author.id == 640363201510244362:
             pass
         else:
             await ctx.send("You can not run this command due to restrictions set in place by the bot developer.", ephemeral=True)
