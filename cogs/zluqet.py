@@ -33,7 +33,7 @@ class Zluqet(commands.Cog):
             self.optout.add(ctx.author.id)
             message = (
                 "You have been opted **back in**. I will automatically upload your "
-                "future text file attachments to a Zluqet."
+                "future text file attachments to Zluqet."
             )
         
         with open('data/optout.json', 'w') as f:
@@ -99,11 +99,13 @@ class Zluqet(commands.Cog):
             except Exception as e:
                 logging.error(f"Failed to process attachment: {e}")
                 
-    @commands.hybrid_command(name='zluqet')
+    @commands.hybrid_command(name='Zluqet')
     async def zluqet(self, ctx, message_id: str):
         """
         Upload a text file to a Zluqet.
         """
+        if ctx.author.id in self.optout:
+            pass
         
         message = await ctx.fetch_message(message_id)
         
