@@ -15,6 +15,7 @@ roles:
 ## Channels
 channels:
   welcome:
+  commands:
 
 ## Colors (Hex)
 colors:

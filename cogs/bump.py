@@ -15,8 +15,8 @@ class BumpCog(commands.Cog):
     with open('config.yml', 'r') as f:
         config = yaml.safe_load(f)
     
-    CHANNELID = 1324979225098453032
-    SERVERID = 1324888658016211005
+    CHANNELID = config['channels']['commands']
+    SERVERID = config['server']['id']
 
     @commands.Cog.listener()
     async def on_message(self, message):
