@@ -5,7 +5,7 @@ import yaml
 
 # Load configuration data from a YAML file
 def load_config():
-    with open('config.yaml', 'r') as f:
+    with open('config.yml', 'r') as f:
         return yaml.safe_load(f)
 
 # Load blacklist data from a JSON file
