@@ -6,12 +6,16 @@ gluqe:
     - ""
     - ""
     - ""
-    # add more - ""
 
 ## Server info
 server:
   name: ""
   id:
+
+## Panel info
+panel:
+  url: ""
+  api: ""
 
 ## Roles
 roles:
