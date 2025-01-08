@@ -1,10 +1,6 @@
-import discord
+import discord, json, asyncio, yaml
 from discord.ext import commands, tasks
 from datetime import datetime
-import json
-import asyncio
-import yaml
-
 
 class BumpCog(commands.Cog):
     def __init__(self, bot):

@@ -1,7 +1,5 @@
-import discord
+import discord, random, os, yaml, asyncio
 from discord.ext import commands
-import yaml
-import os
 
 # Load config
 with open('config.yml', 'r') as f:
@@ -14,6 +12,15 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=config['gluqe']['prefix'], intents=intents)
 bot.remove_command('help')
 
+# Background task to rotate activities
+async def rotate_activity():
+    await bot.wait_until_ready()  # Ensure the bot is fully ready before starting the task
+    while not bot.is_closed():
+        random_activity = random.choice(config['gluqe'].get('activity', ["No activities found"]))
+        await bot.change_presence(
+            activity=discord.Activity(type=discord.ActivityType.watching, name=random_activity)
+        )
+        await asyncio.sleep(15)  # Wait for 15 seconds before changing again
 
 # On ready
 @bot.event
@@ -21,7 +28,7 @@ async def on_ready():
     print(f'Logged in as {bot.user.name} - {bot.user.id}')
     print(f'Version: {discord.__version__}')
     print('------')
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="zluqe.org"))
+    bot.loop.create_task(rotate_activity())
     
 # Load Cogs
 async def load_cogs():

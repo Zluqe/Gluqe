@@ -1,11 +1,8 @@
 # imports
-import discord
+import discord, random, yaml, asyncio
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ext.commands import Context
-import random
-import yaml
-import asyncio
 
 # Load config
 with open('config.yml', 'r') as f:

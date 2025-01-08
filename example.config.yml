@@ -2,6 +2,11 @@
 gluqe:
   token: ""
   prefix: ""
+  activity:
+    - ""
+    - ""
+    - ""
+    # add more - ""
 
 ## Server info
 server:
