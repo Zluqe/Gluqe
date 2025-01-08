@@ -19,7 +19,7 @@ class Moderation(commands.Cog):
             return
 
         # Check for prohibited file extensions in attachments
-        prohibited_extensions = ['.exe', '.bat', '.msi', '.vbs', '.sh', '.py', '.cmd', '.scr', '.java', '.c', '.cpp', '.cs', '.js']
+        prohibited_extensions = ['.exe', '.bat', '.msi', '.vbs', '.sh', '.cmd']
         if any(attachment.filename.lower().endswith(tuple(prohibited_extensions)) for attachment in message.attachments):
             warning_msg = f"{message.author.mention}, your message was deleted due to an attachment with a prohibited file extension."
             await message.delete()

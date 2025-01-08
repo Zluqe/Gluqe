@@ -16,7 +16,7 @@ def get_total_users():
     total_users = len(users['data'])
     return total_users
 
-class NodeStats(commands.Cog):
+class Pterodactyl(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         config = load_config()
@@ -61,4 +61,4 @@ class NodeStats(commands.Cog):
 
 
 async def setup(bot):
-    await bot.add_cog(NodeStats(bot))
+    await bot.add_cog(Pterodactyl(bot))
