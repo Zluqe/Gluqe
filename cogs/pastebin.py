@@ -15,7 +15,7 @@ class Pastebin(commands.Cog):
         except json.JSONDecodeError:
             pass
 
-    @commands.command()
+    @commands.hybrid_command(name='optout')
     async def optout(self, ctx):
         """
         Toggle opt-out status:
