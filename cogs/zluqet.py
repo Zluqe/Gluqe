@@ -42,7 +42,7 @@ class Zluqet(commands.Cog):
         await ctx.send(message)
 
     @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
+    async def on_message(self, ctx, message: discord.Message):
         if message.author.bot:
             return
         
