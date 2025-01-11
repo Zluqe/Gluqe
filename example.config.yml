@@ -1,36 +1,34 @@
-## Bot info
+channels:
+  commands:
+  welcome:
+colors:
+  error: 
+  info: 
+  main:
+  warning: 
+  welcome: 
 gluqe:
-  token: ""
-  prefix: ""
-  owner:
   activity:
-    - ""
-    - ""
-    - ""
-
-## Server info
-server:
-  name: ""
-  id:
-
-## Panel info
+  owner:
+  prefix:
+  token:
 panel:
-  url: ""
-  api: ""
-
-## Roles
+  api:
+  url:
 roles:
   join_role:
-  bump_ping:
-
-## Channels
-channels:
-  welcome:
-  commands:
-
-## Colors (Hex)
-colors:
-  main:
-  info:
-  warning:
-  error:
+selfroles:
+  message_channel_id:
+  message_id:
+  roles:
+  - name:
+    role_id:
+  - name:
+    role_id:
+  - name:
+    role_id:
+  - name:
+    role_id:
+server:
+  id:
+  name:

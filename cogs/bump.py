@@ -2,14 +2,14 @@ import discord, json, asyncio, yaml
 from discord.ext import commands, tasks
 from datetime import datetime
 
+# Load config.yml
+with open('config.yml', 'r') as f:
+    config = yaml.safe_load(f)
 class BumpCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.bump_check.start()  # Start the background task after initialization
     
-    # Load config.yml
-    with open('config.yml', 'r') as f:
-        config = yaml.safe_load(f)
     
     CHANNELID = config['channels']['commands']
     SERVERID = config['server']['id']
