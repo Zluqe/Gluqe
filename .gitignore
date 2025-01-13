@@ -3,3 +3,4 @@ config.yml
 *.pyc
 .vscode/
 .venv/
+data/*
