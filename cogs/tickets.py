@@ -195,7 +195,7 @@ class Tickets(commands.Cog):
             color=discord.Color.green()
         )
         embed.set_footer(text="If you want to close this ticket now, please do /close")
-        await channel.send(embed=embed)
+        await ctx.send(embed=embed)
         resolved_name = f"resolved-{user.name}".lower()
         await channel.edit(name=resolved_name, reason=f"Ticket resolved by {ctx.author}")
         ticket_info["status"] = "resolved"
@@ -222,7 +222,7 @@ class Tickets(commands.Cog):
     @commands.has_permissions(manage_channels=True)
     async def close_ticket(self, ctx: commands.Context):
         """
-        Closes the current ticket channel, including resolved tickets.
+        Closes the current ticket channel, generates a transcript, and sends it to the transcript channel and the user.
         """
         channel = ctx.channel
         ticket_info = self.ticket_data.get(str(channel.id))
@@ -237,19 +237,40 @@ class Tickets(commands.Cog):
             await ctx.send("Could not determine the ticket creator.")
             return
 
-        # Generate and send the transcript
-        transcript = await self.generate_transcript(channel)
+        # Generate the transcript
+        transcript_path = await self.generate_transcript(channel)
 
-        if transcript:
-            transcript_channel = self.bot.get_channel(self.config.get('transcript_channel_id'))
-            if transcript_channel:
-                try:
-                    file = discord.File(transcript, filename=f"{channel.name}.txt")
+        if not transcript_path or not os.path.exists(transcript_path):
+            await ctx.send("Failed to generate the transcript.")
+            return
+
+        # Send the transcript to the transcript channel
+        transcript_channel = self.bot.get_channel(self.config.get('transcript_channel_id'))
+        if transcript_channel:
+            try:
+                with open(transcript_path, "rb") as transcript_file:
+                    file = discord.File(transcript_file, filename=f"{channel.name}.txt")
                     await transcript_channel.send(content=f"Transcript for {channel.name}:", file=file)
-                except discord.HTTPException:
-                    await ctx.send("Failed to send the transcript.")
-            if os.path.exists(transcript):
-                os.remove(transcript)
+            except discord.HTTPException:
+                await ctx.send("Failed to send the transcript to the transcript channel.")
+
+        # Send the transcript to the user
+        try:
+            with open(transcript_path, "rb") as transcript_file:
+                file = discord.File(transcript_file, filename=f"{channel.name}.txt")
+                await user.send(
+                    f"Your ticket in {channel.guild.name} has been resolved. Thank you for reaching out! "
+                    f"Here is a transcript of your ticket:",
+                    file=file
+                )
+        except discord.Forbidden:
+            await ctx.send(f"Could not DM {user.mention} the transcript.")
+        except discord.HTTPException:
+            await ctx.send("Failed to send the transcript to the user.")
+
+        # Delete the transcript file after use
+        if os.path.exists(transcript_path):
+            os.remove(transcript_path)
 
         # Remove the ticket from tracking
         del self.ticket_data[str(channel.id)]
