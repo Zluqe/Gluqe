@@ -148,6 +148,9 @@ class Tickets(commands.Cog):
     @commands.hybrid_command(name='persist')
     @commands.has_permissions(manage_channels=True)
     async def persist_ticket(self, ctx: commands.Context):
+        """
+        Makes the current ticket channel persist, preventing it from closing automatically.
+        """
         channel = ctx.channel
         if str(channel.id) in self.ticket_data:
             self.ticket_data[str(channel.id)]["persist"] = True
@@ -179,6 +182,9 @@ class Tickets(commands.Cog):
     @commands.hybrid_command(name='resolved')
     @commands.has_permissions(manage_channels=True)
     async def ticket_resolved(self, ctx: commands.Context):
+        """
+        Marks the current ticket as resolved.
+        """
         channel = ctx.channel
         ticket_info = self.ticket_data.get(str(channel.id))
         if not ticket_info:
@@ -292,6 +298,9 @@ class Tickets(commands.Cog):
     @commands.command(name='setup_tickets')
     @commands.has_permissions(administrator=True)
     async def setup_tickets(self, ctx: commands.Context):
+        """
+        Sets up the support ticket system by sending an embed message with a button to open a ticket.
+        """
         embed_channel = self.bot.get_channel(self.config.get('embed_channel_id'))
         if not embed_channel:
             await ctx.send("Embed channel not found. Please check the channel ID in config.yml.")

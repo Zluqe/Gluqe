@@ -64,5 +64,18 @@ class Moderation(commands.Cog):
         except Exception as e:
             print(e)
 
+    # Ban command
+    @commands.hybrid_command(name="ban")
+    @commands.has_permissions(ban_members=True)
+    async def ban(self, ctx, member: discord.Member, *, reason=None):
+        """
+        Blacklist a user from using the bot.
+        """
+        try:
+            await member.ban(reason=reason)
+            await ctx.send(f"{member} has been banned from the server due to the reason of {reason}.")
+        except Exception as e:
+            print(e)
+
 async def setup(bot):
     await bot.add_cog(Moderation(bot))
