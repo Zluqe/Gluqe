@@ -89,10 +89,10 @@ class LevelSystem(commands.Cog):
 
             # Notify prize redemption
             if level % self.prize_interval == 0:
-                await message.channel.send(f"🎁 {message.author.mention}, you have reached Level {level} and a prize can be redeemed!")
+                await message.channel.send(f"🎁 {message.author.mention}, you have reached Level {level}! You are able to claim a prize now. **Open a ticket**!")
 
             # Assign a role
-            if level % 5 == 0:
+            if level % 10 == 0:
                 role_name = f"Level {level}"
                 guild = message.guild
                 role = discord.utils.get(guild.roles, name=role_name)
