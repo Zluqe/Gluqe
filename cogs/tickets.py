@@ -108,9 +108,9 @@ class Tickets(commands.Cog):
         )
         await ticket_channel.send(embed=embed, view=view)
         await interaction.followup.send(f"Your ticket has been created: {ticket_channel.mention}", ephemeral=True)
-        # ping_message = await ticket_channel.send(f"{support_role.mention} {user.mention} A new ticket has been created.")
+        ping_message = await ticket_channel.send(f"{support_role.mention} {user.mention} A new ticket has been created.")
         await asyncio.sleep(5)
-        # await ping_message.delete()
+        await ping_message.delete()
 
         # Save ticket data
         self.ticket_data[str(ticket_channel.id)] = {
@@ -228,7 +228,7 @@ class Tickets(commands.Cog):
     @commands.has_permissions(manage_channels=True)
     async def close_ticket(self, ctx: commands.Context):
         """
-        Closes the current ticket channel, generates a transcript, and sends it to the transcript channel and the user.
+        Closes the current ticket channel.
         """
         channel = ctx.channel
         ticket_info = self.ticket_data.get(str(channel.id))
