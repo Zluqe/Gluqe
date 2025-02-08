@@ -146,5 +146,29 @@ class LevelSystem(commands.Cog):
         xp_required = self.calculate_xp_required(level)
         await ctx.send(f"{member.mention}, you are at Level {level} with {xp}/{xp_required} XP.")
 
+    @commands.hybrid_command(name="leaderboard")
+    async def leaderboard(self, ctx):
+        """Display the top 10 users by level and XP who are in the server."""
+        self.cursor.execute("SELECT user_id, level, xp FROM levels ORDER BY level DESC, xp DESC")
+        records = self.cursor.fetchall()
+
+        server_records = [record for record in records if ctx.guild.get_member(record[0])]
+        top_ten = server_records[:10]
+
+        if not top_ten:
+            await ctx.send("No leaderboard data available.")
+            return
+
+        embed = discord.Embed(title="Leaderboard", color=discord.Color.blurple())
+        for index, (user_id, level, xp) in enumerate(top_ten, start=1):
+            member = ctx.guild.get_member(user_id)
+            embed.add_field(
+                name=f"{index}. {member.display_name}",
+                value=f"Level: ```{level}```",
+                inline=True
+            )
+        embed.set_footer(text="Keep leveling up!")
+        await ctx.send(embed=embed)
+
 async def setup(bot):
     await bot.add_cog(LevelSystem(bot))
