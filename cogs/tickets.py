@@ -4,6 +4,8 @@ import yaml
 import os
 import json
 import asyncio
+import re
+import html
 from discord.ui import View, Button
 
 class OpenTicketButton(Button):
@@ -159,7 +161,281 @@ class Tickets(commands.Cog):
         else:
             await ctx.send("This channel is not being tracked as a ticket.")
 
-    async def close_ticket(self, interaction: discord.Interaction, channel=None):
+    async def generate_transcript(self, channel: discord.TextChannel):
+        """
+        Generates an HTML transcript of the channel messages using custom CSS formatting.
+        Embeds are rendered to look as close as possible to Discord's native embed style.
+        Code blocks and inline code are converted as follows:
+          - Triple backticks produce a full-width code block with optional syntax highlighting.
+          - Double backticks produce a smaller inline code block.
+          - Single backticks produce a standard inline code block.
+        Additionally, all other Discord markdown (headers, blockquotes, spoilers, bold, underline, strikethrough,
+        and italic) is converted to HTML.
+        """
+
+        def apply_markdown_formatting(text: str) -> str:
+            text = re.sub(r"^### (.+)$", r"<h3>\1</h3>", text, flags=re.MULTILINE)
+            text = re.sub(r"^## (.+)$", r"<h2>\1</h2>", text, flags=re.MULTILINE)
+            text = re.sub(r"^# (.+)$", r"<h1>\1</h1>", text, flags=re.MULTILINE)
+            text = re.sub(r"^> (.+)$", r"<blockquote>\1</blockquote>", text, flags=re.MULTILINE)
+            text = re.sub(r"\|\|(.*?)\|\|", r'<span class="spoiler">\1</span>', text)
+            text = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", text)
+            text = re.sub(r"__(.*?)__", r"<u>\1</u>", text)
+            text = re.sub(r"~~(.*?)~~", r"<del>\1</del>", text)
+            text = re.sub(r"\*(.*?)\*", r"<em>\1</em>", text)
+            text = re.sub(r"_(.*?)_", r"<em>\1</em>", text)
+            return text
+
+        def format_message_content(content: str) -> str:
+            escaped = html.escape(content)
+            def code_block_replacer(match):
+                lang = match.group(1) or ""
+                code = match.group(2)
+                return f"<pre><code class='{'language-' + lang if lang else ''}'>{code}</code></pre>"
+            formatted = re.sub(r"```(\w+)?\n(.*?)```", code_block_replacer, escaped, flags=re.DOTALL)
+            formatted = re.sub(r"``([^`]+?)``", r"<code class='small-code'>\1</code>", formatted)
+            formatted = re.sub(r"`([^`]+?)`", r"<code>\1</code>", formatted)
+            parts = re.split(r"(<(?:pre|code)(?:\s[^>]+)?>.*?</(?:pre|code)>)", formatted, flags=re.DOTALL)
+            for i, part in enumerate(parts):
+                if not re.match(r"<(?:pre|code)(?:\s[^>]+)?>.*?</(?:pre|code)>", part, flags=re.DOTALL):
+                    parts[i] = apply_markdown_formatting(part)
+                    parts[i] = parts[i].replace("\n", "<br>")
+            return "".join(parts)
+
+        def format_embed(embed: discord.Embed) -> str:
+            accent_color = f"#{embed.color.value:06x}" if embed.color and embed.color.value != 0 else "#5865F2"
+            title = (embed.title or "").replace("**", "").replace("``", "")
+            description = (embed.description or "").replace("**", "").replace("``", "")
+            fields_html = ""
+            if embed.fields:
+                fields_html += '<div class="embed-fields">'
+                for field in embed.fields:
+                    field_name = field.name.replace("**", "").replace("``", "")
+                    field_value = field.value.replace("**", "").replace("``", "")
+                    fields_html += f"""
+                    <div class="embed-field">
+                      <div class="embed-field-name">{field_name}</div>
+                      <div class="embed-field-value">{field_value}</div>
+                    </div>
+                    """
+                fields_html += '</div>'
+            image_html = ""
+            if embed.image and embed.image.url:
+                image_html = f"<img class='embed-image' src='{embed.image.url}' alt='Embed Image'>"
+            footer = ""
+            if embed.footer and embed.footer.text:
+                footer_text = embed.footer.text.replace("**", "").replace("``", "")
+                footer = f"<div class='embed-footer'>{footer_text}</div>"
+            return f"""
+            <div class="embed" style="border-left: 4px solid {accent_color};">
+              {f'<div class="embed-title">{title}</div>' if title else ''}
+              {f'<div class="embed-description">{description}</div>' if description else ''}
+              {fields_html}
+              {image_html}
+              {footer}
+            </div>
+            """
+
+        messages_html = []
+        async for message in channel.history(limit=None, oldest_first=True):
+            timestamp = message.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            author = message.author
+            content = format_message_content(message.content)
+            avatar_url = author.avatar.url if author.avatar else ""
+            embed_html = ""
+            if message.embeds:
+                for embed in message.embeds:
+                    embed_html += format_embed(embed)
+            message_html = f'''
+        <div class="chatlog__message-group">
+          <div class="chatlog__message">
+            <div class="chatlog__message-aside">
+              <img class="chatlog__avatar" src="{avatar_url}" alt="Avatar">
+            </div>
+            <div class="chatlog__message-primary">
+              <div class="chatlog__header">
+                <span class="chatlog__author">{author}</span>
+                <span class="chatlog__timestamp">{timestamp}</span>
+              </div>
+              <div class="chatlog__content">
+                {content}
+                {embed_html}
+              </div>
+            </div>
+          </div>
+        </div>
+            '''
+            messages_html.append(message_html)
+
+        html_template = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Ticket Transcript - {channel.name}</title>
+  <style>
+    html, body {{
+      margin: 0;
+      padding: 0;
+      background-color: #36393e;
+      color: #dcddde;
+      font-family: "gg sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 17px;
+      font-weight: 400;
+      scroll-behavior: smooth;
+    }}
+    a {{
+      color: #00aff4;
+      text-decoration: none;
+    }}
+    a:hover {{
+      text-decoration: underline;
+    }}
+    img {{
+      object-fit: contain;
+      image-rendering: high-quality;
+      image-rendering: -webkit-optimize-contrast;
+    }}
+    .chatlog {{
+      padding: 1rem 0;
+      width: 100%;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }}
+    .chatlog__message-group {{
+      margin-bottom: 1rem;
+    }}
+    .chatlog__message {{
+      display: grid;
+      grid-template-columns: auto 1fr;
+      padding: 0.15rem 0;
+    }}
+    .chatlog__message-aside {{
+      grid-column: 1;
+      width: 72px;
+      padding: 0.15rem;
+      text-align: center;
+    }}
+    .chatlog__avatar {{
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }}
+    .chatlog__message-primary {{
+      grid-column: 2;
+      min-width: 0;
+    }}
+    .chatlog__header {{
+      margin-bottom: 0.1rem;
+    }}
+    .chatlog__author {{
+      font-weight: 500;
+      color: #ffffff;
+    }}
+    .chatlog__timestamp {{
+      margin-left: 0.3rem;
+      color: #a3a6aa;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }}
+    .chatlog__content {{
+      padding-right: 1rem;
+      font-size: 0.95rem;
+      word-wrap: break-word;
+    }}
+    /* Discord-like embed styling */
+    .embed {{
+      border-radius: 4px;
+      background-color: #2F3136;
+      padding: 10px;
+      margin-top: 10px;
+    }}
+    .embed-title {{
+      font-size: 1rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 5px;
+    }}
+    .embed-description {{
+      font-size: 0.9rem;
+      color: #dcddde;
+      margin-bottom: 10px;
+    }}
+    .embed-fields {{
+      display: flex;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }}
+    .embed-field {{
+      flex: 1 1 45%;
+      margin-bottom: 10px;
+    }}
+    .embed-field-name {{
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }}
+    .embed-field-value {{
+      font-size: 0.85rem;
+      color: #dcddde;
+    }}
+    .embed-image {{
+      width: 100%;
+      max-width: 500px;
+      border-radius: 4px;
+      margin-top: 10px;
+    }}
+    .embed-footer {{
+      font-size: 0.75rem;
+      color: #72767d;
+      margin-top: 10px;
+      border-top: 1px solid #202225;
+      padding-top: 5px;
+    }}
+    /* Code block styling */
+    pre {{
+      background-color: #2F3136;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }}
+    code {{
+      font-family: Consolas, "Courier New", Courier, monospace;
+      font-size: 0.9rem;
+      color: #dcddde;
+    }}
+    /* Smaller inline code styling for double backticks */
+    code.small-code {{
+      font-size: 0.8rem;
+      padding: 2px 4px;
+      background-color: #2F3136;
+      border-radius: 3px;
+    }}
+    /* Spoiler styling */
+    .spoiler {{
+      background-color: #000;
+      color: #000;
+      border-radius: 3px;
+      padding: 0 4px;
+    }}
+  </style>
+</head>
+<body>
+  <div class="chatlog">
+    {''.join(messages_html)}
+  </div>
+</body>
+</html>
+'''
+        transcript_path = os.path.join(self.transcript_dir, f"{channel.name}.html")
+        with open(transcript_path, "w", encoding="utf-8") as f:
+            f.write(html_template)
+        return transcript_path
+
+    async def close_ticket(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
         if interaction:
             channel = interaction.channel
         ticket_info = self.ticket_data.get(str(channel.id))
@@ -171,13 +447,19 @@ class Tickets(commands.Cog):
         if transcript:
             transcript_channel = self.bot.get_channel(self.config.get('transcript_channel_id'))
             if transcript_channel:
-                file = discord.File(transcript, filename=f"{channel.name}.txt")
-                await transcript_channel.send(file=file)
+                try:
+                    file = discord.File(transcript, filename=f"{channel.name}.html")
+                    await transcript_channel.send(content=f"Transcript for {channel.name}:", file=file)
+                except discord.HTTPException:
+                    await channel.send("Failed to send the transcript to the transcript channel.")
         if os.path.exists(transcript):
             os.remove(transcript)
         del self.ticket_data[str(channel.id)]
         self.save_ticket_data()
-        await channel.delete(reason="Ticket closed automatically.")
+        try:
+            await channel.delete(reason="Ticket closed automatically.")
+        except discord.HTTPException:
+            await channel.send("Failed to delete the ticket channel.")
 
     @commands.hybrid_command(name='resolved')
     @commands.has_permissions(manage_channels=True)
@@ -208,81 +490,48 @@ class Tickets(commands.Cog):
         self.save_ticket_data()
         self.bot.loop.create_task(self.track_resolved_ticket(channel))
 
-    async def generate_transcript(self, channel: discord.TextChannel):
-        messages = []
-        async for message in channel.history(limit=None, oldest_first=True):
-            timestamp = message.created_at.strftime("%Y-%m-%d %H:%M:%S")
-            author = message.author
-            content = message.content
-            if message.attachments:
-                attachments = ", ".join([attachment.url for attachment in message.attachments])
-                messages.append(f"[{timestamp}] {author}: {content} | Attachments: {attachments}")
-            else:
-                messages.append(f"[{timestamp}] {author}: {content}")
-        transcript_path = os.path.join(self.transcript_dir, f"{channel.name}.txt")
-        with open(transcript_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(messages))
-        return transcript_path
-
     @commands.hybrid_command(name='close')
     @commands.has_permissions(manage_channels=True)
-    async def close_ticket(self, ctx: commands.Context):
+    async def close_ticket_command(self, ctx: commands.Context):
         """
         Closes the current ticket channel.
         """
         channel = ctx.channel
         ticket_info = self.ticket_data.get(str(channel.id))
-
         if not ticket_info:
             await ctx.send("This channel is not being tracked as a ticket.")
             return
-
         user = self.bot.get_user(ticket_info["user_id"])
-
         if not user:
             await ctx.send("Could not determine the ticket creator.")
             return
-
-        # Generate the transcript
         transcript_path = await self.generate_transcript(channel)
-
         if not transcript_path or not os.path.exists(transcript_path):
             await ctx.send("Failed to generate the transcript.")
             return
-
-        # Send the transcript to the transcript channel
         transcript_channel = self.bot.get_channel(self.config.get('transcript_channel_id'))
         if transcript_channel:
             try:
                 with open(transcript_path, "rb") as transcript_file:
-                    file = discord.File(transcript_file, filename=f"{channel.name}.txt")
+                    file = discord.File(transcript_file, filename=f"{channel.name}.html")
                     await transcript_channel.send(content=f"Transcript for {channel.name}:", file=file)
             except discord.HTTPException:
                 await ctx.send("Failed to send the transcript to the transcript channel.")
-
-        # Send the transcript to the user
         try:
             with open(transcript_path, "rb") as transcript_file:
-                file = discord.File(transcript_file, filename=f"{channel.name}.txt")
+                file = discord.File(transcript_file, filename=f"{channel.name}.html")
                 await user.send(
-                    f"Your ticket in {channel.guild.name} has been resolved. Thank you for reaching out! "
-                    f"Here is a transcript of your ticket:",
+                    f"Your ticket in {channel.guild.name} has been resolved. Thank you for reaching out!",
                     file=file
                 )
         except discord.Forbidden:
             await ctx.send(f"Could not DM {user.mention} the transcript.")
         except discord.HTTPException:
             await ctx.send("Failed to send the transcript to the user.")
-
-        # Delete the transcript file after use
         if os.path.exists(transcript_path):
             os.remove(transcript_path)
-
-        # Remove the ticket from tracking
         del self.ticket_data[str(channel.id)]
         self.save_ticket_data()
-
-        # Delete the ticket channel
         try:
             await channel.delete(reason=f"Ticket closed by {ctx.author}")
         except discord.HTTPException:
@@ -315,3 +564,4 @@ class Tickets(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))
+    
