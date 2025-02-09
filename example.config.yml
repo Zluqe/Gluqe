@@ -1,6 +1,7 @@
 channels:
   commands:
   welcome:
+  giveaway:
 colors:
   error: 
   info: 
