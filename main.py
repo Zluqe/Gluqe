@@ -30,9 +30,9 @@ async def on_ready():
     print(f'Version: {discord.__version__}')
     try:
         # Sync commands with Discord
-        guild = discord.Object(id=config['server']['id'])
-        bot.tree.copy_global_to(guild=guild)
-        synced = await bot.tree.sync(guild=guild)
+        # guild = discord.Object(id=config['server']['id'])
+        # bot.tree.copy_global_to(guild=guild)
+        # synced = await bot.tree.sync(guild=guild)
         synced = await bot.tree.sync()
         print(f'Synced {len(synced)} commands')
     except Exception as e:
