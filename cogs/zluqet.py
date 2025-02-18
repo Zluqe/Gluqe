@@ -48,7 +48,7 @@ class Zluqet(commands.Cog):
                 text_content = file_bytes.decode('Latin-1', errors='replace')
 
                 truncated = False
-                max_length = 100000
+                max_length = 25000
                 if len(text_content) > max_length:
                     text_content = text_content[:max_length - 1]
                     truncated = True
