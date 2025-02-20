@@ -1,5 +1,7 @@
+import datetime
 import discord
 from discord.ext import commands
+from typing import Optional
 import yaml
 import os
 import json
@@ -7,6 +9,7 @@ import asyncio
 import re
 import html
 from discord.ui import View, Button
+from discord import app_commands
 
 class OpenTicketButton(Button):
     def __init__(self, cog):
@@ -43,6 +46,58 @@ class Tickets(commands.Cog):
         self.ticket_data_file = "data/ticket.json"
         self.ticket_data = self.load_ticket_data()
         os.makedirs(self.transcript_dir, exist_ok=True)
+        # Create background task for checking inactive tickets
+        self.bg_task = self.bot.loop.create_task(self.check_inactive_tickets())
+
+    def cog_unload(self):
+        self.bg_task.cancel()
+
+    async def check_inactive_tickets(self):
+        await self.bot.wait_until_ready()
+        while not self.bot.is_closed():
+            try:
+                current_time = datetime.datetime.now().timestamp()
+                for channel_id in list(self.ticket_data.keys()):
+                    data = self.ticket_data.get(channel_id, {})
+                    if data.get('persist', False):
+                        continue
+                    channel = self.bot.get_channel(int(channel_id))
+                    if not channel or not isinstance(channel, discord.TextChannel):
+                        del self.ticket_data[channel_id]
+                        self.save_ticket_data()
+                        continue
+                    if not (channel.name.startswith('ticket-') or channel.name.startswith('resolved-')):
+                        continue
+                    try:
+                        messages = [message async for message in channel.history(limit=1)]
+                        if messages:
+                            last_activity = messages[0].created_at
+                        else:
+                            last_activity = channel.created_at
+                        time_since_activity = current_time - last_activity.timestamp()
+                        if time_since_activity >= 86400:  # 24 hours
+                            if 'last_warning' not in data:
+                                user = self.bot.get_user(data.get('user_id'))
+                                if user:
+                                    await channel.send(
+                                        f"{user.mention}, this ticket has been inactive for 24 hours. "
+                                        "It will be closed in 12 hours unless there is a response."
+                                    )
+                                data['last_warning'] = current_time
+                                self.save_ticket_data()
+                            else:
+                                if current_time - data['last_warning'] >= 43200:  # 12 hours
+                                    await self.close_ticket(None, channel)
+                        else:
+                            if 'last_warning' in data:
+                                del data['last_warning']
+                                self.save_ticket_data()
+                    except discord.Forbidden:
+                        continue
+                await asyncio.sleep(3600)  # Check every hour
+            except Exception as e:
+                print(f"Error in inactivity check: {e}")
+                await asyncio.sleep(60)
 
     def load_config(self):
         config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'config.yml')
@@ -133,7 +188,7 @@ class Tickets(commands.Cog):
             except asyncio.TimeoutError:
                 await channel.send(
                     f"{user.mention}, there has been no activity on this ticket for 24 hours. "
-                    f"This ticket will be closed in 12 hours unless there is further response."
+                    "This ticket will be closed in 12 hours unless there is further response."
                 )
                 try:
                     await self.bot.wait_for('message', timeout=43200, check=check_response)
@@ -172,7 +227,6 @@ class Tickets(commands.Cog):
         Additionally, all other Discord markdown (headers, blockquotes, spoilers, bold, underline, strikethrough,
         and italic) is converted to HTML.
         """
-
         def apply_markdown_formatting(text: str) -> str:
             text = re.sub(r"^### (.+)$", r"<h3>\1</h3>", text, flags=re.MULTILINE)
             text = re.sub(r"^## (.+)$", r"<h2>\1</h2>", text, flags=re.MULTILINE)
@@ -479,7 +533,7 @@ class Tickets(commands.Cog):
         embed = discord.Embed(
             title="Ticket Resolved",
             description=f"{user.mention}, your ticket has been resolved. Thank you for reaching out!\n\n"
-                        f"> Please consider reviewing us on [Trust Pilot](https://www.trustpilot.com/review/zluqe.org).",
+                        "> Please consider reviewing us on [Trust Pilot](https://www.trustpilot.com/review/zluqe.org).",
             color=discord.Color.green()
         )
         embed.set_footer(text="If you want to close this ticket now, please do /close")
@@ -564,4 +618,3 @@ class Tickets(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))
-    
