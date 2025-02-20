@@ -1,6 +1,8 @@
-
 config.yml
 *.pyc
 .vscode/
 .venv/
-/data
+/data/blacklist.json
+/data/bumptime.json
+/data/optout.json
+/data/ticket.json
