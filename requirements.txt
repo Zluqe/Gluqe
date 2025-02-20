@@ -1,3 +1,4 @@
 discord
 pyyaml
 py-dactyl
+scikit-learn

@@ -2,6 +2,7 @@ channels:
   commands:
   welcome:
   giveaway:
+  moderation_log:
 colors:
   error: 
   info: 

@@ -1,10 +1,7 @@
 # cogs/selfroles.py
 
-import discord
+import discord, yaml, logging, asyncio
 from discord.ext import commands
-import yaml
-import asyncio
-import logging
 
 # Load config
 with open('config.yml', 'r') as f:

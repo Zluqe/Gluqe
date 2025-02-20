@@ -1,5 +1,4 @@
-import discord
-import yaml
+import discord, yaml
 from discord.ext import commands
 from discord import app_commands
 from pydactyl import PterodactylClient

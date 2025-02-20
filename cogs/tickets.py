@@ -1,13 +1,6 @@
-import datetime
-import discord
+import discord, datetime, yaml, os, json, asyncio, re, html
 from discord.ext import commands
 from typing import Optional
-import yaml
-import os
-import json
-import asyncio
-import re
-import html
 from discord.ui import View, Button
 from discord import app_commands
 

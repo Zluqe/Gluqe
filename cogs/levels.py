@@ -1,8 +1,6 @@
-import discord
+import discord, sqlite3, math
 from discord.ext import commands
 from discord.ext.commands import CooldownMapping
-import sqlite3
-import math
 
 class LevelSystem(commands.Cog):
     def __init__(self, bot):

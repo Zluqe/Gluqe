@@ -1,11 +1,5 @@
-import discord
+import discord, sqlite3, yaml, os, random, time, asyncio
 from discord.ext import commands
-import sqlite3
-import yaml
-import os
-import random
-import time
-import asyncio
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
