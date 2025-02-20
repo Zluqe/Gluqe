@@ -1,5 +1,5 @@
 # imports
-import discord, asyncio, json, re, yaml, os, pickle
+import discord, asyncio, json, re, yaml, os, pickle, requests
 from discord.ext import commands, tasks
 from datetime import datetime, timedelta
 from helpers.checks import is_blacklisted, is_owner, load_blacklist
@@ -20,12 +20,46 @@ class Moderation(commands.Cog):
         self.bot = bot
         self.threshold = threshold
         self.remove_list = remove_list if remove_list is not None else []
-        config = load_config()  # Load configuration data so that config is defined.
+        config = load_config()
         self.log_channel_id = config['channels']['moderation_log']
 
+        self.vectorizer = None  # Initialize to None
+        self.classifier = None  # Initialize to None
+        self.load_model_task = asyncio.create_task(self.load_model()) # Create a task
+
+    async def load_model(self): # Make it an async method
         base_dir = os.path.join(os.path.dirname(__file__), "..", "data")
         vectorizer_path = os.path.join(base_dir, "moderation_vectorizer.pkl")
         classifier_path = os.path.join(base_dir, "moderation_classifier.pkl")
+
+        # Download the files if they don't exist
+        files_to_download = [
+            {"url": "https://github.com/Zluqe/Gluqe/raw/refs/heads/main/data/moderation_classifier.pkl", "filename": "moderation_classifier.pkl"},
+            {"url": "https://github.com/Zluqe/Gluqe/raw/refs/heads/main/data/moderation_vectorizer.pkl", "filename": "moderation_vectorizer.pkl"},
+        ]
+
+        for file_info in files_to_download:
+            url = file_info["url"]
+            filename = file_info["filename"]
+            filepath = os.path.join(base_dir, filename)
+
+            if not os.path.exists(filepath): # Only download if the file doesn't exist
+                try:
+                    response = requests.get(url, stream=True)
+                    response.raise_for_status()
+
+                    with open(filepath, "wb") as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
+
+                    print(f"Downloaded {filename} to {filepath}")
+
+                except requests.exceptions.RequestException as e:
+                    print(f"Error downloading {filename}: {e}")
+                    return # Stop if download fails
+                except Exception as e:
+                    print(f"An unexpected error occurred while processing {filename}: {e}")
+                    return # Stop if download fails
 
         try:
             with open(vectorizer_path, "rb") as vf:
@@ -37,6 +71,10 @@ class Moderation(commands.Cog):
             print("Error loading moderation model:", e)
             self.vectorizer = None
             self.classifier = None
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await self.load_model_task # Wait for the model to load
 
     @commands.Cog.listener()
     async def on_message(self, message):
