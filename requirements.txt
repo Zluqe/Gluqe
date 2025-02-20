@@ -2,3 +2,5 @@ discord
 pyyaml
 py-dactyl
 scikit-learn
+aiofiles
+aiosqlite
