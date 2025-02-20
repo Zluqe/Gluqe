@@ -1,26 +1,29 @@
-import discord, sqlite3, math
+import discord, math, random, asyncio
+import aiosqlite
 from discord.ext import commands
 from discord.ext.commands import CooldownMapping
 
 class LevelSystem(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.conn = sqlite3.connect("data/levels.db")
-        self.cursor = self.conn.cursor()
-        self._create_tables()
+        self.db = None
         self.cooldowns = CooldownMapping.from_cooldown(1, 5, commands.BucketType.user)
         self.prize_interval = 10
 
-    def _create_tables(self):
-        """Create the tables"""
-        self.cursor.execute("""
+    async def init_db(self):
+        self.db = await aiosqlite.connect("data/levels.db")
+        await self._create_tables()
+
+    async def _create_tables(self):
+        """Create the tables if they don't exist."""
+        await self.db.execute("""
         CREATE TABLE IF NOT EXISTS levels (
             user_id INTEGER PRIMARY KEY,
             level INTEGER NOT NULL,
             xp INTEGER NOT NULL
         )
         """)
-        self.cursor.execute("""
+        await self.db.execute("""
         CREATE TABLE IF NOT EXISTS prize_claims (
             user_id INTEGER NOT NULL,
             level INTEGER NOT NULL,
@@ -28,53 +31,63 @@ class LevelSystem(commands.Cog):
             PRIMARY KEY (user_id, level)
         )
         """)
-        self.conn.commit()
+        await self.db.commit()
 
-    def get_user_data(self, user_id):
-        """user data from the database."""
-        self.cursor.execute("SELECT level, xp FROM levels WHERE user_id = ?", (user_id,))
-        result = self.cursor.fetchone()
+    async def get_user_data(self, user_id):
+        """Fetch user data from the database."""
+        async with self.db.execute("SELECT level, xp FROM levels WHERE user_id = ?", (user_id,)) as cursor:
+            result = await cursor.fetchone()
         if result is None:
-            self.cursor.execute("INSERT INTO levels (user_id, level, xp) VALUES (?, ?, ?)", (user_id, 0, 0))
-            self.conn.commit()
+            await self.db.execute("INSERT INTO levels (user_id, level, xp) VALUES (?, ?, ?)", (user_id, 0, 0))
+            await self.db.commit()
             return 0, 0
         return result
 
-    def update_user_data(self, user_id, level, xp):
-        """Update user data"""
-        self.cursor.execute("UPDATE levels SET level = ?, xp = ? WHERE user_id = ?", (level, xp, user_id))
-        self.conn.commit()
+    async def update_user_data(self, user_id, level, xp):
+        """Update user data in the database."""
+        await self.db.execute("UPDATE levels SET level = ?, xp = ? WHERE user_id = ?", (level, xp, user_id))
+        await self.db.commit()
 
     def calculate_xp_required(self, level):
         """Calculate the XP required for the next level."""
         return 5 * (level ** 2) + 50 * level + 100
 
-    def has_claimed_prize(self, user_id, level):
-        """Check if a user has claimed prize"""
-        self.cursor.execute("SELECT claimed FROM prize_claims WHERE user_id = ? AND level = ?", (user_id, level))
-        result = self.cursor.fetchone()
+    async def has_claimed_prize(self, user_id, level):
+        """Check if a user has claimed the prize for a given level."""
+        async with self.db.execute("SELECT claimed FROM prize_claims WHERE user_id = ? AND level = ?", (user_id, level)) as cursor:
+            result = await cursor.fetchone()
         return result is not None and result[0] == 1
 
-    def set_prize_claimed(self, user_id, level):
-        """Mark a prize as claimed"""
-        self.cursor.execute("""
+    async def set_prize_claimed(self, user_id, level):
+        """Mark a prize as claimed for a given level."""
+        await self.db.execute("""
         INSERT OR REPLACE INTO prize_claims (user_id, level, claimed) VALUES (?, ?, ?)
         """, (user_id, level, 1))
-        self.conn.commit()
+        await self.db.commit()
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        """Initialize the database on bot ready."""
+        # Ensure the data directory exists
+        import os
+        if not os.path.exists("data"):
+            os.makedirs("data")
+        if self.db is None:
+            await self.init_db()
 
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot:
             return
 
-        # Cooldown
+        # Cooldown check
         bucket = self.cooldowns.get_bucket(message)
         retry_after = bucket.update_rate_limit()
         if retry_after:
             return
 
         user_id = message.author.id
-        level, xp = self.get_user_data(user_id)
+        level, xp = await self.get_user_data(user_id)
         xp += 8  # XP for sending a message
         xp_required = self.calculate_xp_required(level)
 
@@ -82,14 +95,16 @@ class LevelSystem(commands.Cog):
             level += 1
             xp -= xp_required
 
-            # Notify leveled up
+            # Notify level up
             await message.channel.send(f"🎉 {message.author.mention}, you have leveled up to: Level {level}!")
 
-            # Notify prize redemption
+            # Notify prize redemption if applicable
             if level % self.prize_interval == 0:
-                await message.channel.send(f"🎁 {message.author.mention}, you have reached Level {level}! You are able to claim a prize now. **Open a ticket**!")
+                await message.channel.send(
+                    f"🎁 {message.author.mention}, you have reached Level {level}! You are able to claim a prize now. **Open a ticket**!"
+                )
 
-            # Assign a role
+            # Assign a role 
             if level % 5 == 0:
                 role_name = f"Level {level}"
                 guild = message.guild
@@ -98,22 +113,23 @@ class LevelSystem(commands.Cog):
                     role = await guild.create_role(name=role_name)
                 await message.author.add_roles(role)
 
-        self.update_user_data(user_id, level, xp)
-        
+        await self.update_user_data(user_id, level, xp)
+
     @commands.hybrid_command(name="prize")
     @commands.has_permissions(administrator=True)
     async def prize(self, ctx, option: str, member: discord.Member):
         """
         Check or mark prize claims for a user.
+        Usage: prize check|claim @member
         """
         user_id = member.id
-        user_level, _ = self.get_user_data(user_id)
+        user_level, _ = await self.get_user_data(user_id)
 
         if option.lower() == "check":
             unclaimed = []
-            for level in range(self.prize_interval, user_level + 1, self.prize_interval):
-                if not self.has_claimed_prize(user_id, level):
-                    unclaimed.append(level)
+            for lvl in range(self.prize_interval, user_level + 1, self.prize_interval):
+                if not await self.has_claimed_prize(user_id, lvl):
+                    unclaimed.append(lvl)
 
             if unclaimed:
                 levels = ", ".join(map(str, unclaimed))
@@ -123,10 +139,10 @@ class LevelSystem(commands.Cog):
 
         elif option.lower() == "claim":
             claimed = []
-            for level in range(self.prize_interval, user_level + 1, self.prize_interval):
-                if not self.has_claimed_prize(user_id, level):
-                    self.set_prize_claimed(user_id, level)
-                    claimed.append(level)
+            for lvl in range(self.prize_interval, user_level + 1, self.prize_interval):
+                if not await self.has_claimed_prize(user_id, lvl):
+                    await self.set_prize_claimed(user_id, lvl)
+                    claimed.append(lvl)
 
             if claimed:
                 levels = ", ".join(map(str, claimed))
@@ -140,15 +156,15 @@ class LevelSystem(commands.Cog):
     async def check_level(self, ctx, member: discord.Member = None):
         """Check the level of yourself or another user."""
         member = member or ctx.author
-        level, xp = self.get_user_data(member.id)
+        level, xp = await self.get_user_data(member.id)
         xp_required = self.calculate_xp_required(level)
         await ctx.send(f"{member.mention}, you are at Level {level} with {xp}/{xp_required} XP.")
 
     @commands.hybrid_command(name="leaderboard")
     async def leaderboard(self, ctx):
         """Display the top 10 users by level and XP who are in the server."""
-        self.cursor.execute("SELECT user_id, level, xp FROM levels ORDER BY level DESC, xp DESC")
-        records = self.cursor.fetchall()
+        async with self.db.execute("SELECT user_id, level, xp FROM levels ORDER BY level DESC, xp DESC") as cursor:
+            records = await cursor.fetchall()
 
         server_records = [record for record in records if ctx.guild.get_member(record[0])]
         top_ten = server_records[:10]

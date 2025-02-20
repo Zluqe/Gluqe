@@ -1,5 +1,4 @@
-# imports
-import discord, asyncio, json, re, yaml, os, pickle, requests
+import discord, asyncio, json, re, yaml, os, pickle, aiohttp, aiofiles
 from discord.ext import commands, tasks
 from datetime import datetime, timedelta
 from helpers.checks import is_blacklisted, is_owner, load_blacklist
@@ -25,9 +24,9 @@ class Moderation(commands.Cog):
 
         self.vectorizer = None  # Initialize to None
         self.classifier = None  # Initialize to None
-        self.load_model_task = asyncio.create_task(self.load_model()) # Create a task
+        self.load_model_task = asyncio.create_task(self.load_model())  # Create a task
 
-    async def load_model(self): # Make it an async method
+    async def load_model(self):
         base_dir = os.path.join(os.path.dirname(__file__), "..", "data")
         vectorizer_path = os.path.join(base_dir, "moderation_vectorizer.pkl")
         classifier_path = os.path.join(base_dir, "moderation_classifier.pkl")
@@ -38,28 +37,27 @@ class Moderation(commands.Cog):
             {"url": "https://github.com/Zluqe/Gluqe/raw/refs/heads/main/data/moderation_vectorizer.pkl", "filename": "moderation_vectorizer.pkl"},
         ]
 
-        for file_info in files_to_download:
-            url = file_info["url"]
-            filename = file_info["filename"]
-            filepath = os.path.join(base_dir, filename)
+        async with aiohttp.ClientSession() as session:
+            for file_info in files_to_download:
+                url = file_info["url"]
+                filename = file_info["filename"]
+                filepath = os.path.join(base_dir, filename)
 
-            if not os.path.exists(filepath): # Only download if the file doesn't exist
-                try:
-                    response = requests.get(url, stream=True)
-                    response.raise_for_status()
-
-                    with open(filepath, "wb") as f:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            f.write(chunk)
-
-                    print(f"Downloaded {filename} to {filepath}")
-
-                except requests.exceptions.RequestException as e:
-                    print(f"Error downloading {filename}: {e}")
-                    return # Stop if download fails
-                except Exception as e:
-                    print(f"An unexpected error occurred while processing {filename}: {e}")
-                    return # Stop if download fails
+                if not os.path.exists(filepath):
+                    try:
+                        async with session.get(url) as response:
+                            if response.status != 200:
+                                raise Exception(f"Error downloading {filename}: status code {response.status}")
+                            async with aiofiles.open(filepath, "wb") as f:
+                                while True:
+                                    chunk = await response.content.read(8192)
+                                    if not chunk:
+                                        break
+                                    await f.write(chunk)
+                        print(f"Downloaded {filename} to {filepath}")
+                    except Exception as e:
+                        print(f"Error downloading {filename}: {e}")
+                        return
 
         try:
             with open(vectorizer_path, "rb") as vf:
@@ -74,7 +72,7 @@ class Moderation(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        await self.load_model_task # Wait for the model to load
+        await self.load_model_task
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -113,18 +111,11 @@ class Moderation(commands.Cog):
             if user.id not in blacklist:
                 blacklist.append(user.id)
                 self.save_blacklist(blacklist)
-                await ctx.reply(f"{user.name} has been blacklisted.")
+                await ctx.reply(f"{user.name} has been blacklisted.", mention_author=True)
             else:
-                try:
-                    blacklist = load_blacklist()
-                    if user.id in blacklist:
-                        blacklist.remove(user.id)
-                        self.save_blacklist(blacklist)
-                        await ctx.reply(f"{user.name} has been removed from the blacklist.")
-                    else:
-                        await ctx.reply("Legacy code: Removing everything may cause issues.")
-                except Exception as e:
-                    print(e)                
+                blacklist.remove(user.id)
+                self.save_blacklist(blacklist)
+                await ctx.reply(f"{user.name} has been removed from the blacklist.", mention_author=True)
         except Exception as e:
             print(e)
 
@@ -175,11 +166,9 @@ class Moderation(commands.Cog):
         flagged_prob = probabilities[flagged_idx]
         if flagged_prob >= self.threshold:
             try:
-                await message.delete()
+                # await message.delete()
                 warn_message = (
-                    f"{message.author.mention}, your message was deleted because it was flagged as inappropriate and has been logged. "
-                    "If you believe this was an error, please open a ticket. "
-                    "\n\nNote: This model is currently in training and is not 100% accurate."
+                    f"{message.author.mention}, you message was flagged, nothing will be deleted, however, this incident has been logged.\n\nZluqe AI is still in development, please notify if there are any mistakes."
                 )
                 await message.channel.send(warn_message, delete_after=15)
                 
