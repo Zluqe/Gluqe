@@ -10,12 +10,24 @@ def load_config():
     with open('config.yml', 'r') as f:
         return yaml.safe_load(f)
 
-# Fetch the total count of users
+# Total Users
 def get_total_users():
     config = load_config()
     api = PterodactylClient(config['panel']['url'], config['panel']['api'])
-    users = api.user.list_users()
-    total_users = len(users['data'])
+
+    total_users = 0
+    page = 1
+
+    while True:
+        users_page = api.user.list_users(params={'page': page, 'per_page': 100})
+        users = users_page.get('data', [])
+        total_users += len(users)
+
+        if len(users) < 100:
+            break
+
+        page += 1
+
     return total_users
 
 class Pterodactyl(commands.Cog):
@@ -32,7 +44,6 @@ class Pterodactyl(commands.Cog):
         Displays stats for all nodes, including total servers per node.
         """
         try:
-            # Fetch all servers and group them by node ID
             servers = self.api.servers.list_servers().collect()
             servers_per_node = defaultdict(int)
 
@@ -41,7 +52,6 @@ class Pterodactyl(commands.Cog):
                 if node_id is not None:
                     servers_per_node[node_id] += 1
 
-            # Fetch node stats
             nodes = self.api.nodes.list_nodes()
             nodes_data = nodes.collect() if hasattr(nodes, 'collect') else list(nodes)
 
@@ -60,7 +70,7 @@ class Pterodactyl(commands.Cog):
                 used_memory = attributes['allocated_resources'].get('memory', 0)
                 total_disk = attributes['disk']
                 used_disk = attributes['allocated_resources'].get('disk', 0)
-                total_servers = servers_per_node.get(node_id, 0)  # Get server count from grouped data
+                total_servers = servers_per_node.get(node_id, 0)
 
                 embed.add_field(
                     name=f"**{name}** - {fqdn}",
@@ -77,7 +87,6 @@ class Pterodactyl(commands.Cog):
 
         except Exception as e:
             await ctx.send(f"❌ Error fetching node stats: {e}")
-
 
 async def setup(bot):
     await bot.add_cog(Pterodactyl(bot))
